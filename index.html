@@ -510,11 +510,19 @@
         <input type="number" id="sell-product-stock" class="form-control" readonly>
       </div>
       <div class="form-group">
-        <label for="customer-name">Nama Pembeli</label>
+        <label for="customer-name">Nama Pembeli *</label>
         <input type="text" id="customer-name" class="form-control" placeholder="Masukkan nama pembeli" required>
       </div>
       <div class="form-group">
-        <label for="sell-quantity">Jumlah yang Dibeli</label>
+        <label for="customer-phone">No. Telepon Pembeli</label>
+        <input type="text" id="customer-phone" class="form-control" placeholder="Masukkan nomor telepon">
+      </div>
+      <div class="form-group">
+        <label for="customer-address">Alamat Pembeli</label>
+        <textarea id="customer-address" class="form-control" placeholder="Masukkan alamat pembeli" rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="sell-quantity">Jumlah yang Dibeli *</label>
         <input type="number" id="sell-quantity" class="form-control" min="1" value="1" required>
       </div>
       <div class="form-group">
@@ -554,6 +562,7 @@
     // Referensi koleksi
     const productsRef = db.collection("products");
     const salesRef = db.collection("sales");
+    const customersRef = db.collection("customers");
     
     // Data
     let products = [];
@@ -589,6 +598,8 @@
     const sellProductPrice = document.getElementById('sell-product-price');
     const sellProductStock = document.getElementById('sell-product-stock');
     const customerName = document.getElementById('customer-name');
+    const customerPhone = document.getElementById('customer-phone');
+    const customerAddress = document.getElementById('customer-address');
     const sellQuantity = document.getElementById('sell-quantity');
     const sellTotal = document.getElementById('sell-total');
     const confirmSellBtn = document.getElementById('confirm-sell');
@@ -725,6 +736,8 @@
         sellProductPrice.value = product.price;
         sellProductStock.value = product.stock;
         customerName.value = '';
+        customerPhone.value = '';
+        customerAddress.value = '';
         sellQuantity.value = 1;
         sellQuantity.max = product.stock;
         updateSellTotal();
@@ -746,10 +759,44 @@
       currentSellingProduct = null;
     }
     
+    // Fungsi untuk menyimpan data pelanggan
+    async function saveCustomer(customerData) {
+      try {
+        // Cek apakah pelanggan sudah ada berdasarkan nama
+        const querySnapshot = await customersRef
+          .where('name', '==', customerData.name)
+          .where('phone', '==', customerData.phone)
+          .get();
+        
+        if (!querySnapshot.empty) {
+          // Jika pelanggan sudah ada, update data terbaru
+          const customerDoc = querySnapshot.docs[0];
+          await customersRef.doc(customerDoc.id).update({
+            ...customerData,
+            lastPurchase: new Date()
+          });
+          return customerDoc.id;
+        } else {
+          // Jika pelanggan baru, tambahkan ke database
+          const docRef = await customersRef.add({
+            ...customerData,
+            firstPurchase: new Date(),
+            lastPurchase: new Date()
+          });
+          return docRef.id;
+        }
+      } catch (error) {
+        console.error("Error saving customer:", error);
+        return null;
+      }
+    }
+    
     // Fungsi untuk memproses penjualan
     async function processSale() {
       const quantity = parseInt(sellQuantity.value);
       const customer = customerName.value.trim();
+      const phone = customerPhone.value.trim();
+      const address = customerAddress.value.trim();
       
       if (!customer) {
         showNotification('Nama pembeli harus diisi!', true);
@@ -769,6 +816,15 @@
       try {
         showLoading(true);
         
+        // Simpan data pelanggan
+        const customerData = {
+          name: customer,
+          phone: phone,
+          address: address
+        };
+        
+        const customerId = await saveCustomer(customerData);
+        
         // Update stok produk
         const newStock = currentSellingProduct.stock - quantity;
         await productsRef.doc(currentSellingProduct.id).update({
@@ -780,7 +836,9 @@
         const saleData = {
           productId: currentSellingProduct.id,
           productName: currentSellingProduct.name,
+          customerId: customerId,
           customerName: customer,
+          customerPhone: phone,
           quantity: quantity,
           pricePerItem: parseInt(currentSellingProduct.price),
           totalPrice: quantity * parseInt(currentSellingProduct.price),
@@ -837,7 +895,6 @@
       } catch (error) {
         console.error("Error saving product: ", error);
         showNotification('Terjadi kesalahan saat menyimpan produk!', true);
-      } finally {
         showLoading(false);
       }
     }
