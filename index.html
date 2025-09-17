@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Toko Abaya - Manajemen Stok Penjualan</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      --primary: #3498db;
+      --secondary: #2ecc71;
+      --accent: #e74c3c;
+      --dark: #2c3e50;
+      --light: #ecf0f1;
+      --gray: #95a5a6;
+      --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    body {
+      background-color: #f8f9fa;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    
+    /* Header Styles */
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--dark));
+      color: white;
+      padding: 1.5rem 0;
+      box-shadow: var(--shadow);
+    }
+    
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .logo i {
+      font-size: 2.5rem;
+    }
+    
+    .logo h1 {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    
+    /* Main Content */
+    .main-content {
+      padding: 2rem 0;
+    }
+    
+    .dashboard-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      text-align: center;
+      transition: transform 0.3s;
+    }
+    
+    .card:hover {
+      transform: translateY(-5px);
+    }
+    
+    .card i {
+      font-size: 2.5rem;
+      margin-bottom: 15px;
+      color: var(--primary);
+    }
+    
+    .card h3 {
+      font-size: 1.8rem;
+      margin-bottom: 10px;
+    }
+    
+    .card p {
+      color: var(--gray);
+    }
+    
+    /* Form Styles */
+    .form-section {
+      background: white;
+      border-radius: 10px;
+      padding: 25px;
+      box-shadow: var(--shadow);
+      margin-bottom: 30px;
+    }
+    
+    .form-section h2 {
+      color: var(--dark);
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--light);
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--dark);
+    }
+    
+    .form-control {
+      width: 100%;
+      padding: 12px 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1rem;
+      transition: border 0.3s;
+    }
+    
+    .form-control:focus {
+      border-color: var(--primary);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    }
+    
+    .btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #2980b9;
+    }
+    
+    .btn-secondary {
+      background: var(--secondary);
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: #27ae60;
+    }
+    
+    .btn-danger {
+      background: var(--accent);
+      color: white;
+    }
+    
+    .btn-danger:hover {
+      background: #c0392b;
+    }
+    
+    /* Table Styles */
+    .table-section {
+      background: white;
+      border-radius: 10px;
+      padding: 25px;
+      box-shadow: var(--shadow);
+      overflow-x: auto;
+    }
+    
+    .table-section h2 {
+      color: var(--dark);
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--light);
+    }
+    
+    .product-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .product-table th,
+    .product-table td {
+      padding: 15px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    
+    .product-table th {
+      background-color: var(--light);
+      color: var(--dark);
+      font-weight: 600;
+    }
+    
+    .product-table tr:hover {
+      background-color: #f5f5f5;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .action-btn {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.3s;
+    }
+    
+    .edit-btn {
+      background: #f39c12;
+      color: white;
+    }
+    
+    .edit-btn:hover {
+      background: #e67e22;
+    }
+    
+    .delete-btn {
+      background: var(--accent);
+      color: white;
+    }
+    
+    .delete-btn:hover {
+      background: #c0392b;
+    }
+    
+    /* Loading Spinner */
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-left: 4px solid var(--primary);
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+      display: none;
+    }
+    
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+    
+    /* Footer */
+    footer {
+      background: var(--dark);
+      color: white;
+      text-align: center;
+      padding: 20px 0;
+      margin-top: 40px;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .header-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+      }
+      
+      .dashboard-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .action-buttons {
+        flex-direction: column;
+      }
+    }
+    
+    /* Notification */
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 20px;
+      border-radius: 5px;
+      color: white;
+      background: var(--secondary);
+      box-shadow: var(--shadow);
+      transform: translateX(100%);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+    
+    .notification.show {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    
+    .notification.error {
+      background: var(--accent);
+    }
+    
+    /* Search and Filter */
+    .search-filter {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .search-box {
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .filter-box {
+      min-width: 150px;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="container">
+      <div class="header-content">
+        <div class="logo">
+          <i class="fas fa-store"></i>
+          <h1>Toko Abaya</h1>
+        </div>
+        <p>Manajemen Stok Penjualan UMKM</p>
+      </div>
+    </div>
+  </header>
+  
+  <div class="container main-content">
+    <div class="dashboard-cards">
+      <div class="card">
+        <i class="fas fa-boxes"></i>
+        <h3 id="total-products">0</h3>
+        <p>Total Produk</p>
+      </div>
+      <div class="card">
+        <i class="fas fa-warehouse"></i>
+        <h3 id="total-stock">0</h3>
+        <p>Total Stok</p>
+      </div>
+      <div class="card">
+        <i class="fas fa-money-bill-wave"></i>
+        <h3 id="total-value">Rp 0</h3>
+        <p>Nilai Total</p>
+      </div>
+    </div>
+    
+    <div class="form-section">
+      <h2 id="form-title">Tambah Produk Baru</h2>
+      <form id="product-form">
+        <input type="hidden" id="product-id">
+        <div class="form-group">
+          <label for="product-name">Nama Produk</label>
+          <input type="text" id="product-name" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="product-category">Kategori</label>
+          <select id="product-category" class="form-control" required>
+            <option value="">Pilih Kategori</option>
+            <option value="Pakaian">Pakaian</option>
+            <option value="Lainnya">Lainnya</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="product-price">Harga (Rp)</label>
+          <input type="number" id="product-price" class="form-control" min="0" required>
+        </div>
+        <div class="form-group">
+          <label for="product-stock">Stok</label>
+          <input type="number" id="product-stock" class="form-control" min="0" required>
+        </div>
+        <div class="form-group">
+          <button type="submit" class="btn btn-primary" id="save-btn">Simpan Produk</button>
+          <button type="button" class="btn btn-danger" id="cancel-btn" style="display: none;">Batal</button>
+        </div>
+      </form>
+    </div>
+    
+    <div class="table-section">
+      <h2>Daftar Produk</h2>
+      
+      <div class="search-filter">
+        <div class="search-box">
+          <input type="text" id="search-input" class="form-control" placeholder="Cari produk...">
+        </div>
+        <div class="filter-box">
+          <select id="category-filter" class="form-control">
+            <option value="">Semua Kategori</option>
+            <option value="Makanan">Makanan</option>
+            <option value="Minuman">Minuman</option>
+            <option value="Elektronik">Elektronik</option>
+            <option value="Pakaian">Pakaian</option>
+            <option value="Lainnya">Lainnya</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="spinner" id="loading-spinner"></div>
+      <table class="product-table">
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Nama Produk</th>
+            <th>Kategori</th>
+            <th>Harga</th>
+            <th>Stok</th>
+            <th>Nilai</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="product-list">
+          <!-- Data produk akan dimuat di sini -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <footer>
+    <div class="container">
+      <p>&copy; 2025 Yayan Toko - UMKM Management System</p>
+    </div>
+  </footer>
+  
+  <div class="notification" id="notification"></div>
+  
+  <script>
+    // Konfigurasi Firebase (ganti dengan konfigurasi project Firebase Anda)
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "yayan-toko.firebaseapp.com",
+      projectId: "yayan-toko",
+      storageBucket: "yayan-toko.appspot.com",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    
+    // Inisialisasi Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    
+    // Referensi koleksi produk
+    const productsRef = db.collection("products");
+    
+    // Data produk
+    let products = [];
+    let editingId = null;
+    let unsubscribe = null;
+    
+    // DOM Elements
+    const productForm = document.getElementById('product-form');
+    const productId = document.getElementById('product-id');
+    const productName = document.getElementById('product-name');
+    const productCategory = document.getElementById('product-category');
+    const productPrice = document.getElementById('product-price');
+    const productStock = document.getElementById('product-stock');
+    const productList = document.getElementById('product-list');
+    const saveBtn = document.getElementById('save-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const formTitle = document.getElementById('form-title');
+    const notification = document.getElementById('notification');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const searchInput = document.getElementById('search-input');
+    const categoryFilter = document.getElementById('category-filter');
+    
+    // Dashboard elements
+    const totalProducts = document.getElementById('total-products');
+    const totalStock = document.getElementById('total-stock');
+    const totalValue = document.getElementById('total-value');
+    
+    // Fungsi untuk menampilkan notifikasi
+    function showNotification(message, isError = false) {
+      notification.textContent = message;
+      notification.classList.add('show');
+      if (isError) {
+        notification.classList.add('error');
+      } else {
+        notification.classList.remove('error');
+      }
+      
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 3000);
+    }
+    
+    // Fungsi untuk menampilkan loading
+    function showLoading(show) {
+      loadingSpinner.style.display = show ? 'block' : 'none';
+    }
+    
+    // Fungsi untuk mengupdate dashboard
+    function updateDashboard() {
+      // Hitung total produk
+      totalProducts.textContent = products.length;
+      
+      // Hitung total stok
+      const stockTotal = products.reduce((total, product) => total + parseInt(product.stock), 0);
+      totalStock.textContent = stockTotal;
+      
+      // Hitung total nilai
+      const valueTotal = products.reduce((total, product) => total + (parseInt(product.price) * parseInt(product.stock)), 0);
+      totalValue.textContent = `Rp ${valueTotal.toLocaleString('id-ID')}`;
+    }
+    
+    // Fungsi untuk merender daftar produk
+    function renderProducts() {
+      productList.innerHTML = '';
+      
+      if (products.length === 0) {
+        productList.innerHTML = '<tr><td colspan="7" style="text-align: center;">Tidak ada produk</td></tr>';
+        updateDashboard();
+        return;
+      }
+      
+      // Filter produk berdasarkan pencarian dan kategori
+      const searchTerm = searchInput.value.toLowerCase();
+      const categoryValue = categoryFilter.value;
+      
+      const filteredProducts = products.filter(product => {
+        const matchesSearch = product.name.toLowerCase().includes(searchTerm);
+        const matchesCategory = categoryValue === '' || product.category === categoryValue;
+        return matchesSearch && matchesCategory;
+      });
+      
+      if (filteredProducts.length === 0) {
+        productList.innerHTML = '<tr><td colspan="7" style="text-align: center;">Tidak ada produk yang sesuai dengan filter</td></tr>';
+        updateDashboard();
+        return;
+      }
+      
+      filteredProducts.forEach((product, index) => {
+        const tr = document.createElement('tr');
+        const productValue = parseInt(product.price) * parseInt(product.stock);
+        
+        tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${product.name}</td>
+                    <td>${product.category}</td>
+                    <td>Rp ${parseInt(product.price).toLocaleString('id-ID')}</td>
+                    <td>${product.stock}</td>
+                    <td>Rp ${productValue.toLocaleString('id-ID')}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="action-btn edit-btn" data-id="${product.id}">Edit</button>
+                            <button class="action-btn delete-btn" data-id="${product.id}">Hapus</button>
+                        </div>
+                    </td>
+                `;
+        
+        productList.appendChild(tr);
+      });
+      
+      // Tambahkan event listener untuk tombol edit dan hapus
+      document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.target.getAttribute('data-id');
+          editProduct(id);
+        });
+      });
+      
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.target.getAttribute('data-id');
+          deleteProduct(id);
+        });
+      });
+      
+      updateDashboard();
+    }
+    
+    // Fungsi untuk menambah atau mengedit produk
+    async function saveProduct(e) {
+      e.preventDefault();
+      
+      const product = {
+        name: productName.value,
+        category: productCategory.value,
+        price: productPrice.value,
+        stock: productStock.value,
+        lastUpdated: new Date()
+      };
+      
+      // Validasi form
+      if (!product.name || !product.category || !product.price || !product.stock) {
+        showNotification('Harap isi semua field!', true);
+        return;
+      }
+      
+      try {
+        showLoading(true);
+        
+        if (editingId) {
+          // Edit produk yang sudah ada
+          await productsRef.doc(editingId).update(product);
+          showNotification('Produk berhasil diupdate!');
+        } else {
+          // Tambah produk baru
+          await productsRef.add(product);
+          showNotification('Produk berhasil ditambahkan!');
+        }
+        
+        // Reset form
+        resetForm();
+        
+      } catch (error) {
+        console.error("Error saving product: ", error);
+        showNotification('Terjadi kesalahan saat menyimpan produk!', true);
+      } finally {
+        showLoading(false);
+      }
+    }
+    
+    // Fungsi untuk mengedit produk
+    function editProduct(id) {
+      const product = products.find(p => p.id === id);
+      if (product) {
+        editingId = id;
+        productId.value = product.id;
+        productName.value = product.name;
+        productCategory.value = product.category;
+        productPrice.value = product.price;
+        productStock.value = product.stock;
+        
+        // Ubah tampilan form
+        formTitle.textContent = 'Edit Produk';
+        saveBtn.textContent = 'Update Produk';
+        cancelBtn.style.display = 'inline-block';
+        
+        // Scroll ke form
+        productForm.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+    
+    // Fungsi untuk menghapus produk
+    async function deleteProduct(id) {
+      if (confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
+        try {
+          showLoading(true);
+          await productsRef.doc(id).delete();
+          showNotification('Produk berhasil dihapus!');
+          
+          // Jika sedang mengedit produk yang dihapus, reset form
+          if (editingId === id) {
+            resetForm();
+          }
+        } catch (error) {
+          console.error("Error deleting product: ", error);
+          showNotification('Terjadi kesalahan saat menghapus produk!', true);
+        } finally {
+          showLoading(false);
+        }
+      }
+    }
+    
+    // Fungsi untuk reset form
+    function resetForm() {
+      productForm.reset();
+      editingId = null;
+      formTitle.textContent = 'Tambah Produk Baru';
+      saveBtn.textContent = 'Simpan Produk';
+      cancelBtn.style.display = 'none';
+    }
+    
+    // Event Listeners
+    productForm.addEventListener('submit', saveProduct);
+    cancelBtn.addEventListener('click', resetForm);
+    searchInput.addEventListener('input', renderProducts);
+    categoryFilter.addEventListener('change', renderProducts);
+    
+    // Inisialisasi aplikasi
+    function init() {
+      showLoading(true);
+      
+      // Mendengarkan perubahan pada koleksi produk
+      unsubscribe = productsRef.orderBy("lastUpdated", "desc").onSnapshot(snapshot => {
+        products = [];
+        snapshot.forEach(doc => {
+          const product = doc.data();
+          product.id = doc.id;
+          products.push(product);
+        });
+        
+        renderProducts();
+        showLoading(false);
+      }, error => {
+        console.error("Error getting products: ", error);
+        showNotification('Terjadi kesalahan saat memuat produk!', true);
+        showLoading(false);
+      });
+    }
+    
+    // Jalankan aplikasi
+    init();
+  </script>
+</body>
+
+</html>
