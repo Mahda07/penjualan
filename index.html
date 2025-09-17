@@ -258,6 +258,15 @@
       background: #c0392b;
     }
     
+    .sell-btn {
+      background: var(--secondary);
+      color: white;
+    }
+    
+    .sell-btn:hover {
+      background: #27ae60;
+    }
+    
     /* Loading Spinner */
     .spinner {
       border: 4px solid rgba(0, 0, 0, 0.1);
@@ -347,6 +356,40 @@
     .filter-box {
       min-width: 150px;
     }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-content {
+      background-color: white;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: var(--shadow);
+    }
+    
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .close:hover {
+      color: black;
+    }
   </style>
 </head>
 
@@ -378,7 +421,7 @@
       <div class="card">
         <i class="fas fa-money-bill-wave"></i>
         <h3 id="total-value">Rp 0</h3>
-        <p>Nilai Total</p>
+        <p>Omset</p>
       </div>
     </div>
     
@@ -422,6 +465,7 @@
         </div>
         <div class="filter-box">
           <select id="category-filter" class="form-control">
+            <option value="">Semua Kategori</option>
             <option value="Pakaian">Pakaian</option>
             <option value="Lainnya">Lainnya</option>
           </select>
@@ -447,6 +491,41 @@
       </table>
     </div>
   </div>
+
+  <!-- Modal Penjualan -->
+  <div id="sell-modal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Penjualan Produk</h2>
+      <div class="form-group">
+        <label for="sell-product-name">Nama Produk</label>
+        <input type="text" id="sell-product-name" class="form-control" readonly>
+      </div>
+      <div class="form-group">
+        <label for="sell-product-price">Harga per Item (Rp)</label>
+        <input type="number" id="sell-product-price" class="form-control" readonly>
+      </div>
+      <div class="form-group">
+        <label for="sell-product-stock">Stok Tersedia</label>
+        <input type="number" id="sell-product-stock" class="form-control" readonly>
+      </div>
+      <div class="form-group">
+        <label for="customer-name">Nama Pembeli</label>
+        <input type="text" id="customer-name" class="form-control" placeholder="Masukkan nama pembeli" required>
+      </div>
+      <div class="form-group">
+        <label for="sell-quantity">Jumlah yang Dibeli</label>
+        <input type="number" id="sell-quantity" class="form-control" min="1" value="1" required>
+      </div>
+      <div class="form-group">
+        <label for="sell-total">Total Harga (Rp)</label>
+        <input type="number" id="sell-total" class="form-control" readonly>
+      </div>
+      <div class="form-group">
+        <button type="button" class="btn btn-secondary" id="confirm-sell">Konfirmasi Penjualan</button>
+      </div>
+    </div>
+  </div>
   
   <footer>
     <div class="container">
@@ -457,28 +536,31 @@
   <div class="notification" id="notification"></div>
   
   <script>
-    // Konfigurasi Firebase (ganti dengan konfigurasi project Firebase Anda)
+    // Konfigurasi Firebase
     const firebaseConfig = {
-  apiKey: "AIzaSyCfqZD7UZZt-GWmtNhfJyksrv3-8ENRjto",
-  authDomain: "insan-cemerlang-d5574.firebaseapp.com",
-  projectId: "insan-cemerlang-d5574",
-  storageBucket: "insan-cemerlang-d5574.appspot.com",
-  messagingSenderId: "1035937160050",
-  appId: "1:1035937160050:web:6d77d3874c3f78b2811beb",
-  measurementId: "G-EVVQ80Q08C"
-};
+      apiKey: "AIzaSyCfqZD7UZZt-GWmtNhfJyksrv3-8ENRjto",
+      authDomain: "insan-cemerlang-d5574.firebaseapp.com",
+      projectId: "insan-cemerlang-d5574",
+      storageBucket: "insan-cemerlang-d5574.appspot.com",
+      messagingSenderId: "1035937160050",
+      appId: "1:1035937160050:web:6d77d3874c3f78b2811beb",
+      measurementId: "G-EVVQ80Q08C"
+    };
 
     // Inisialisasi Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     
-    // Referensi koleksi produk
+    // Referensi koleksi
     const productsRef = db.collection("products");
+    const salesRef = db.collection("sales");
     
-    // Data produk
+    // Data
     let products = [];
     let editingId = null;
     let unsubscribe = null;
+    let currentSellingProduct = null;
+    let totalOmset = 0;
     
     // DOM Elements
     const productForm = document.getElementById('product-form');
@@ -498,8 +580,19 @@
     
     // Dashboard elements
     const totalProducts = document.getElementById('total-products');
-    const totalStock = document.getElementById('total-stock');
+    const totalStockElement = document.getElementById('total-stock');
     const totalValue = document.getElementById('total-value');
+    
+    // Modal elements
+    const sellModal = document.getElementById('sell-modal');
+    const sellProductName = document.getElementById('sell-product-name');
+    const sellProductPrice = document.getElementById('sell-product-price');
+    const sellProductStock = document.getElementById('sell-product-stock');
+    const customerName = document.getElementById('customer-name');
+    const sellQuantity = document.getElementById('sell-quantity');
+    const sellTotal = document.getElementById('sell-total');
+    const confirmSellBtn = document.getElementById('confirm-sell');
+    const closeModal = document.querySelector('.close');
     
     // Fungsi untuk menampilkan notifikasi
     function showNotification(message, isError = false) {
@@ -521,6 +614,21 @@
       loadingSpinner.style.display = show ? 'block' : 'none';
     }
     
+    // Fungsi untuk menghitung omset
+    async function calculateOmset() {
+      try {
+        const snapshot = await salesRef.get();
+        totalOmset = 0;
+        snapshot.forEach(doc => {
+          const sale = doc.data();
+          totalOmset += sale.totalPrice;
+        });
+        totalValue.textContent = `Rp ${totalOmset.toLocaleString('id-ID')}`;
+      } catch (error) {
+        console.error("Error calculating omset:", error);
+      }
+    }
+    
     // Fungsi untuk mengupdate dashboard
     function updateDashboard() {
       // Hitung total produk
@@ -528,11 +636,10 @@
       
       // Hitung total stok
       const stockTotal = products.reduce((total, product) => total + parseInt(product.stock), 0);
-      totalStock.textContent = stockTotal;
+      totalStockElement.textContent = stockTotal;
       
-      // Hitung total nilai
-      const valueTotal = products.reduce((total, product) => total + (parseInt(product.price) * parseInt(product.stock)), 0);
-      totalValue.textContent = `Rp ${valueTotal.toLocaleString('id-ID')}`;
+      // Update omset
+      calculateOmset();
     }
     
     // Fungsi untuk merender daftar produk
@@ -566,28 +673,36 @@
         const productValue = parseInt(product.price) * parseInt(product.stock);
         
         tr.innerHTML = `
-                    <td>${index + 1}</td>
-                    <td>${product.name}</td>
-                    <td>${product.category}</td>
-                    <td>Rp ${parseInt(product.price).toLocaleString('id-ID')}</td>
-                    <td>${product.stock}</td>
-                    <td>Rp ${productValue.toLocaleString('id-ID')}</td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="action-btn edit-btn" data-id="${product.id}">Edit</button>
-                            <button class="action-btn delete-btn" data-id="${product.id}">Hapus</button>
-                        </div>
-                    </td>
-                `;
+          <td>${index + 1}</td>
+          <td>${product.name}</td>
+          <td>${product.category}</td>
+          <td>Rp ${parseInt(product.price).toLocaleString('id-ID')}</td>
+          <td>${product.stock}</td>
+          <td>Rp ${productValue.toLocaleString('id-ID')}</td>
+          <td>
+            <div class="action-buttons">
+              <button class="action-btn edit-btn" data-id="${product.id}">Edit</button>
+              <button class="action-btn sell-btn" data-id="${product.id}">Jual</button>
+              <button class="action-btn delete-btn" data-id="${product.id}">Hapus</button>
+            </div>
+          </td>
+        `;
         
         productList.appendChild(tr);
       });
       
-      // Tambahkan event listener untuk tombol edit dan hapus
+      // Tambahkan event listener untuk tombol
       document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const id = e.target.getAttribute('data-id');
           editProduct(id);
+        });
+      });
+      
+      document.querySelectorAll('.sell-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.target.getAttribute('data-id');
+          openSellModal(id);
         });
       });
       
@@ -599,6 +714,90 @@
       });
       
       updateDashboard();
+    }
+    
+    // Fungsi untuk membuka modal penjualan
+    function openSellModal(id) {
+      const product = products.find(p => p.id === id);
+      if (product) {
+        currentSellingProduct = product;
+        sellProductName.value = product.name;
+        sellProductPrice.value = product.price;
+        sellProductStock.value = product.stock;
+        customerName.value = '';
+        sellQuantity.value = 1;
+        sellQuantity.max = product.stock;
+        updateSellTotal();
+        
+        sellModal.style.display = 'block';
+      }
+    }
+    
+    // Fungsi untuk update total penjualan
+    function updateSellTotal() {
+      const quantity = parseInt(sellQuantity.value) || 0;
+      const price = parseInt(sellProductPrice.value) || 0;
+      sellTotal.value = quantity * price;
+    }
+    
+    // Fungsi untuk menutup modal
+    function closeSellModal() {
+      sellModal.style.display = 'none';
+      currentSellingProduct = null;
+    }
+    
+    // Fungsi untuk memproses penjualan
+    async function processSale() {
+      const quantity = parseInt(sellQuantity.value);
+      const customer = customerName.value.trim();
+      
+      if (!customer) {
+        showNotification('Nama pembeli harus diisi!', true);
+        return;
+      }
+      
+      if (!quantity || quantity <= 0) {
+        showNotification('Jumlah pembelian tidak valid!', true);
+        return;
+      }
+      
+      if (quantity > currentSellingProduct.stock) {
+        showNotification('Stok tidak mencukupi!', true);
+        return;
+      }
+      
+      try {
+        showLoading(true);
+        
+        // Update stok produk
+        const newStock = currentSellingProduct.stock - quantity;
+        await productsRef.doc(currentSellingProduct.id).update({
+          stock: newStock,
+          lastUpdated: new Date()
+        });
+        
+        // Catat penjualan
+        const saleData = {
+          productId: currentSellingProduct.id,
+          productName: currentSellingProduct.name,
+          customerName: customer,
+          quantity: quantity,
+          pricePerItem: parseInt(currentSellingProduct.price),
+          totalPrice: quantity * parseInt(currentSellingProduct.price),
+          saleDate: new Date()
+        };
+        
+        await salesRef.add(saleData);
+        
+        showNotification('Penjualan berhasil dicatat!');
+        closeSellModal();
+        
+      } catch (error) {
+        console.error("Error processing sale:", error);
+        showNotification('Terjadi kesalahan saat memproses penjualan!', true);
+      } finally {
+        showLoading(false);
+      }
     }
     
     // Fungsi untuk menambah atau mengedit produk
@@ -700,6 +899,16 @@
     searchInput.addEventListener('input', renderProducts);
     categoryFilter.addEventListener('change', renderProducts);
     
+    // Modal event listeners
+    closeModal.addEventListener('click', closeSellModal);
+    window.addEventListener('click', (e) => {
+      if (e.target === sellModal) {
+        closeSellModal();
+      }
+    });
+    sellQuantity.addEventListener('input', updateSellTotal);
+    confirmSellBtn.addEventListener('click', processSale);
+    
     // Inisialisasi aplikasi
     function init() {
       showLoading(true);
@@ -720,6 +929,9 @@
         showNotification('Terjadi kesalahan saat memuat produk!', true);
         showLoading(false);
       });
+      
+      // Hitung omset awal
+      calculateOmset();
     }
     
     // Jalankan aplikasi
